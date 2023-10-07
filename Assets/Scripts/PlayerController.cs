@@ -168,11 +168,6 @@ namespace King
             CurrentState = PlayerState.Deciding;
         }
 
-        private void Undo()
-        {
-            
-        }
-
         public bool RotationIsPressed()
         {
             return horizontalAction.IsPressed() || verticalAction.IsPressed();
