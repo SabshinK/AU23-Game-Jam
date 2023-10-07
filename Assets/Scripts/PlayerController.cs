@@ -25,6 +25,8 @@ namespace King
 
         private Animator anim;
 
+        private Stack<Vector3> actionsTaken;
+
         #region Unity Callbacks
 
         private void Awake()
@@ -164,6 +166,11 @@ namespace King
             }
 
             CurrentState = PlayerState.Deciding;
+        }
+
+        private void Undo()
+        {
+            
         }
 
         public bool RotationIsPressed()
