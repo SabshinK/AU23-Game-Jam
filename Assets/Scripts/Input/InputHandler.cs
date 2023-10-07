@@ -19,5 +19,13 @@ namespace King
         {
             return Inputs.FindAction(name);
         }
+
+        public static void SetMapActive(bool active)
+        {
+            if (active) 
+                Inputs.Player.Enable();
+            else 
+                Inputs.Player.Disable();
+        }
     }
 }
