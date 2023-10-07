@@ -7,18 +7,25 @@ namespace King
     public class Spikes : MonoBehaviour, ISentient
     {
         [SerializeField] GameObject spikeParent;
-        [SerializeField] bool alternating = true;
-        bool spikesOut = true;
+        //Window of time for the spikes to be enabled.
+        [SerializeField] int period = 2;
+        //The specific turn number inside the period which the spikes are enabled.
+        [SerializeField] int offset = 0;
+        bool spikesOut = false;
         
 
         public void StartTurn(GameTurnManager manager)
         {
-            if (alternating)
+            if(manager.GlobalTurnCount%period == offset)
             {
-                spikesOut = !spikesOut;
+                spikesOut = true;
+                spikeParent.SetActive(spikesOut);
+
+            }else if (spikesOut)
+            {
+                spikesOut = false;
                 spikeParent.SetActive(spikesOut);
             }
-
             manager.EndTurn();
         }
     }

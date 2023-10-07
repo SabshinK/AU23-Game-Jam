@@ -8,6 +8,8 @@ namespace King
     {
         //Replace GameObject with an interface which contains method "void StartTurn(GameTurnManager manager)"
         [SerializeField] List<GameObject> sentientObjects;
+        [SerializeField] int turnCount = 30;
+        public int GlobalTurnCount { get { return turnCount; } private set { turnCount = value; } }
         int objectTurn = 0;
 
         private void Awake()
