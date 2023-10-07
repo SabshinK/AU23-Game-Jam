@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,6 +14,7 @@ namespace King
 
         private InputAction rotationAction;
         private Dictionary<InputAction, Action> actions;
+        public PlayerState CurrentState { get; private set; }
 
         private Vector3 rawRotation;
         private Quaternion rotation;
@@ -32,12 +34,6 @@ namespace King
             actions.Add(InputHandler.GetAction("Movement"), Move);
             actions.Add(InputHandler.GetAction("Interact"), Interact);
             actions.Add(InputHandler.GetAction("Attack"), Attack);
-
-            rawRotation = Vector3.zero;
-            rotation = transform.rotation;
-
-            nextSpace = transform.position;
-            previousSpace = transform.position;
 
             anim = GetComponentInChildren<Animator>();
         }
@@ -62,14 +58,29 @@ namespace King
             InputHandler.SetMapActive(false);
 
             rotationAction.performed -= CacheRotation;
+
+            var keys = actions.Keys;
+            foreach (var key in keys)
+            {
+                key.performed -= PerformAction;
+            }
+        }
+
+        private void Start()
+        {
+            rawRotation = Vector3.zero;
+            rotation = transform.rotation;
+
+            nextSpace = transform.position;
+            previousSpace = transform.position;
+
+            CurrentState = PlayerState.Deciding;
         }
 
         private void Update()
         {
             if (transform.rotation != rotation)
                 transform.rotation = Quaternion.Slerp(transform.rotation, rotation, rotationSpeed * Time.deltaTime);
-
-            //transform.position = Vector3.Lerp(transform.position, nextSpace, movementSpeed * Time.deltaTime);
         }
 
         #endregion
@@ -88,8 +99,9 @@ namespace King
             InputAction actionType = context.action;
 
             // We are only allowed to commit to actions while the rotation keys are being pressed
-            if (rotationAction.IsPressed() && actions.ContainsKey(actionType))
+            if (rotationAction.IsPressed() && CurrentState != PlayerState.InAction && actions.ContainsKey(actionType))
             {
+                CurrentState = PlayerState.InAction;
                 actions[actionType].Invoke();
             }
         }
@@ -100,34 +112,50 @@ namespace King
 
         private void Move()
         {
-
+            StartCoroutine(Movement());
         }
 
         private void Interact()
         {
-            Debug.Log("Interaction!");
+            // TODO
         }
 
         private void Attack()
         {
-            Debug.Log("Attack!");
+            // TODO
         }
 
-        private IEnumerator Movement()
+        private IEnumerator Movement(float timeInSeconds = 1.0f)
         {
             previousSpace = nextSpace;
             nextSpace = previousSpace + rawRotation * 2;
 
             anim.SetTrigger("Move");
 
+            //for (float t = 0; t < 1f; t += Time.deltaTime / timeInSeconds)
+            //{
+            //    transform.position = Vector3.Lerp(transform.position, nextSpace, t);
+
+            //    yield return null;
+            //}
+
             while (transform.position != nextSpace)
             {
-                transform.position = Vector3.MoveTowards(nextSpace, transform.position, movementSpeed * Time.deltaTime);
+                transform.position = Vector3.MoveTowards(transform.position, nextSpace, movementSpeed * Time.deltaTime);
 
-                yield return new WaitForEndOfFrame();
+                yield return null;
             }
+
+            CurrentState = PlayerState.Deciding;
         }
 
         #endregion
+    }
+
+    public enum PlayerState
+    {
+        Deciding,
+        InAction,
+        Failed
     }
 }

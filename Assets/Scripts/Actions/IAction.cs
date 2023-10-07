@@ -7,8 +7,10 @@ namespace King
 {
     public interface IAction
     {
-        void PerformAction();
+        void Performed();
 
         void Update();
+
+        void Cancelled();
     }
 }
