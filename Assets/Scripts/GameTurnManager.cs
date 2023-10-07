@@ -6,6 +6,7 @@ namespace King
 {
     public class GameTurnManager : MonoBehaviour
     {
+        //Replace GameObject with an interface which contains method "void StartTurn(GameTurnManager manager)"
         [SerializeField] List<GameObject> sentientObjects;
         int objectTurn = 0;
 
