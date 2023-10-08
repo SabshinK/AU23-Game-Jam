@@ -12,8 +12,11 @@ namespace King
         //The specific turn number inside the period which the spikes are enabled.
         [SerializeField] int offset = 0;
         bool spikesOut = false;
-        
 
+        private void Awake()
+        {
+            spikeParent.SetActive(offset==0);
+        }
         public IEnumerator StartTurn(GameTurnManager manager)
         {
             if(manager.GlobalTurnCount%period == offset)
