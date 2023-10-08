@@ -15,7 +15,7 @@ namespace King
 
         private void Awake()
         {
-            spikeParent.SetActive(offset==0);
+            spikeParent.SetActive(offset == 0);
         }
         public IEnumerator StartTurn(GameTurnManager manager)
         {

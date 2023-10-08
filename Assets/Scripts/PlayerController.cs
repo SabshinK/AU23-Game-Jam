@@ -28,6 +28,7 @@ namespace King
         private Stack<Vector3> actionsTaken;
 
         private bool moving;
+        private bool canMove;
 
         #region Unity Callbacks
 
@@ -108,6 +109,18 @@ namespace King
                 rawRotation = new Vector3(input.x, 0f, input.y);
                 rotation = Quaternion.LookRotation(rawRotation, Vector3.up);
             }
+
+            Debug.Log("bruh");
+
+            canMove = !Physics.Raycast(nextSpace, rawRotation * 2, out RaycastHit hitInfo, 2f);
+
+            Color color;
+            if (canMove)
+                color = Color.green;
+            else
+                color = Color.red;
+
+            Debug.DrawRay(nextSpace, rawRotation * 2, color, 1f);
         }
 
         private void PerformAction(InputAction.CallbackContext context)
@@ -117,7 +130,6 @@ namespace King
             // We are only allowed to commit to actions while the rotation keys are being pressed
             if (RotationIsPressed() && CurrentState != PlayerState.InAction && actions.ContainsKey(actionType))
             {
-                CurrentState = PlayerState.InAction;
                 actions[actionType].Invoke();
             }
         }
@@ -138,13 +150,18 @@ namespace King
 
         private void Move()
         {
-            Vector3 previousSpace = nextSpace;
-            nextSpace = previousSpace + rawRotation * 2;
+            if (canMove)
+            {
+                CurrentState = PlayerState.InAction;
 
-            // cache move
-            actionsTaken.Push(previousSpace);
+                Vector3 previousSpace = nextSpace;
+                nextSpace = previousSpace + rawRotation * 2;
 
-            StartCoroutine(Movement());
+                // cache move
+                actionsTaken.Push(previousSpace);
+
+                StartCoroutine(Movement());
+            }
         }
 
         private void Interact()
