@@ -14,7 +14,7 @@ namespace King
         bool spikesOut = false;
         
 
-        public void StartTurn(GameTurnManager manager)
+        public IEnumerator StartTurn(GameTurnManager manager)
         {
             if(manager.GlobalTurnCount%period == offset)
             {
@@ -26,6 +26,8 @@ namespace King
                 spikesOut = false;
                 spikeParent.SetActive(spikesOut);
             }
+
+            yield return null;
             manager.EndTurn();
         }
     }

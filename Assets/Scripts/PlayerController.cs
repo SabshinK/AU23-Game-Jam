@@ -7,7 +7,7 @@ using UnityEngine.InputSystem;
 
 namespace King
 {
-    public class PlayerController : MonoBehaviour
+    public class PlayerController : MonoBehaviour, ISentient
     {
         [SerializeField] private float rotationSpeed = 5f;
         [SerializeField] private float movementSpeed = 5f;
@@ -42,36 +42,6 @@ namespace King
             anim = GetComponentInChildren<Animator>();
         }
 
-        private void OnEnable()
-        {
-            // When the map is enabled all the actions should be as well
-            InputHandler.SetMapActive(true);
-
-            horizontalAction.performed += CacheRotation;
-            verticalAction.performed += CacheRotation;
-
-            var keys = actions.Keys;
-            foreach (var key in keys)
-            {
-                key.performed += PerformAction;
-            }
-        }
-
-        private void OnDisable()
-        {
-            // When the map is disabled all the actions should be as well
-            InputHandler.SetMapActive(false);
-
-            horizontalAction.performed -= CacheRotation;
-            verticalAction.performed -= CacheRotation;
-
-            var keys = actions.Keys;
-            foreach (var key in keys)
-            {
-                key.performed -= PerformAction;
-            }
-        }
-
         private void Start()
         {
             rawRotation = Vector3.zero;
@@ -80,7 +50,7 @@ namespace King
             nextSpace = transform.position;
             previousSpace = transform.position;
 
-            CurrentState = PlayerState.Deciding;
+            CurrentState = PlayerState.WaitingForTurn;
         }
 
         private void Update()
@@ -173,11 +143,59 @@ namespace King
             return horizontalAction.IsPressed() || verticalAction.IsPressed();
         }
 
+
+        private void EnableCharacterControls()
+        {
+            // When the map is enabled all the actions should be as well
+            InputHandler.SetMapActive(true);
+
+            horizontalAction.performed += CacheRotation;
+            verticalAction.performed += CacheRotation;
+
+            var keys = actions.Keys;
+            foreach (var key in keys)
+            {
+                key.performed += PerformAction;
+            }
+        }
+        private void DisableCharacterControls()
+        {
+            
+            // When the map is disabled all the actions should be as well
+            InputHandler.SetMapActive(false);
+
+            horizontalAction.performed -= CacheRotation;
+            verticalAction.performed -= CacheRotation;
+
+            var keys = actions.Keys;
+            foreach (var key in keys)
+            {
+                key.performed -= PerformAction;
+            }
+        }
+
         #endregion
+
+        public IEnumerator StartTurn(GameTurnManager manager)
+        {
+            EnableCharacterControls();
+            Debug.Log("Start Player Turn!");
+            CurrentState = PlayerState.Deciding;
+
+            while (CurrentState != PlayerState.InAction)
+                yield return null;
+
+            DisableCharacterControls();
+            Debug.Log("End Player Turn!");
+            manager.EndTurn();
+        }
+
+
     }
 
     public enum PlayerState
     {
+        WaitingForTurn,
         Deciding,
         InAction,
         Failed

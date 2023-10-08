@@ -12,16 +12,17 @@ namespace King
         public int GlobalTurnCount { get { return turnCount; } private set { turnCount = value; } }
         int objectTurn = 0;
 
-        private void Awake()
+        private void Start()
         {
             //Start the first object's turn
-            //sentientObjects[objectTurn].StartTurn(this);
+            StartCoroutine(sentientObjects[objectTurn].GetComponent<ISentient>().StartTurn(this));
         }
 
         public void EndTurn()
         {
             objectTurn = (objectTurn+1)%sentientObjects.Count;
-            //sentientObjects[objectTurn].StartTurn(this);
+            if (objectTurn == 0) turnCount--;
+            StartCoroutine(sentientObjects[objectTurn].GetComponent<ISentient>().StartTurn(this));
         }
     }
 }
