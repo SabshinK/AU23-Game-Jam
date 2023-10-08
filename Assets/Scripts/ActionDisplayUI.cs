@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace King
 {
-    public class Undo : MonoBehaviour
+    public class ActionDisplayUI : MonoBehaviour
     {
         // Start is called before the first frame update
         void Start()

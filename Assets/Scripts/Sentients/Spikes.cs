@@ -19,12 +19,12 @@ namespace King
         }
         public IEnumerator StartTurn(GameTurnManager manager)
         {
-            if(manager.GlobalTurnCount%period == offset)
+            if (manager.GlobalTurnCount % period == offset)
             {
                 spikesOut = true;
                 spikeParent.SetActive(spikesOut);
-
-            }else if (spikesOut)
+            }
+            else if (spikesOut)
             {
                 spikesOut = false;
                 spikeParent.SetActive(spikesOut);

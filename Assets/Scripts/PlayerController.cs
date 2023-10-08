@@ -14,6 +14,7 @@ namespace King
 
         private InputAction horizontalAction;
         private InputAction verticalAction;
+        private InputAction undoAction;
         private Dictionary<InputAction, Action> actions;
         public PlayerState CurrentState { get; private set; }
 
@@ -21,25 +22,54 @@ namespace King
         private Quaternion rotation;
 
         private Vector3 nextSpace;
-        private Vector3 previousSpace;
 
         private Animator anim;
 
         private Stack<Vector3> actionsTaken;
+
+        private bool moving;
 
         #region Unity Callbacks
 
         private void Awake()
         {
             actions = new Dictionary<InputAction, Action>();
+            actionsTaken = new Stack<Vector3>();
 
             horizontalAction = InputHandler.GetAction("Horizontal");
             verticalAction = InputHandler.GetAction("Vertical");
+            undoAction = InputHandler.GetAction("Undo");
             actions.Add(InputHandler.GetAction("Movement"), Move);
             actions.Add(InputHandler.GetAction("Interact"), Interact);
             actions.Add(InputHandler.GetAction("Attack"), Attack);
 
             anim = GetComponentInChildren<Animator>();
+        }
+
+        private void OnEnable()
+        {
+            horizontalAction.performed += CacheRotation;
+            verticalAction.performed += CacheRotation;
+            undoAction.performed += Undo;
+
+            var keys = actions.Keys;
+            foreach (var key in keys)
+            {
+                key.performed += PerformAction;
+            }
+        }
+
+        private void OnDisable()
+        {
+            horizontalAction.performed -= CacheRotation;
+            verticalAction.performed -= CacheRotation;
+            undoAction.performed -= Undo;
+
+            var keys = actions.Keys;
+            foreach (var key in keys)
+            {
+                key.performed -= PerformAction;
+            }
         }
 
         private void Start()
@@ -48,9 +78,8 @@ namespace King
             rotation = transform.rotation;
 
             nextSpace = transform.position;
-            previousSpace = transform.position;
 
-            CurrentState = PlayerState.WaitingForTurn;
+            CurrentState = PlayerState.Waiting;
         }
 
         private void Update()
@@ -93,12 +122,28 @@ namespace King
             }
         }
 
+        private void Undo(InputAction.CallbackContext context)
+        {
+            if (CurrentState != PlayerState.Waiting && actionsTaken.Count > 0)
+            {
+                nextSpace = actionsTaken.Pop();
+
+                StartCoroutine(SetSpace());
+            }
+        }
+
         #endregion
 
         #region Custom Methods
 
         private void Move()
         {
+            Vector3 previousSpace = nextSpace;
+            nextSpace = previousSpace + rawRotation * 2;
+
+            // cache move
+            actionsTaken.Push(previousSpace);
+
             StartCoroutine(Movement());
         }
 
@@ -112,12 +157,9 @@ namespace King
             // TODO
         }
 
-        private IEnumerator Movement(float timeInSeconds = 1.0f)
+        private IEnumerator SetSpace(float timeInSeconds = 1.0f)
         {
-            previousSpace = nextSpace;
-            nextSpace = previousSpace + rawRotation * 2;
-
-            Debug.Log(rawRotation);
+            moving = true;
 
             anim.SetTrigger("Move");
 
@@ -135,6 +177,15 @@ namespace King
                 yield return null;
             }
 
+            moving = false;
+        }
+
+        private IEnumerator Movement()
+        {
+            StartCoroutine(SetSpace());
+
+            yield return new WaitUntil(() => { return !moving; });
+
             CurrentState = PlayerState.Deciding;
         }
 
@@ -143,59 +194,28 @@ namespace King
             return horizontalAction.IsPressed() || verticalAction.IsPressed();
         }
 
-
-        private void EnableCharacterControls()
-        {
-            // When the map is enabled all the actions should be as well
-            InputHandler.SetMapActive(true);
-
-            horizontalAction.performed += CacheRotation;
-            verticalAction.performed += CacheRotation;
-
-            var keys = actions.Keys;
-            foreach (var key in keys)
-            {
-                key.performed += PerformAction;
-            }
-        }
-        private void DisableCharacterControls()
-        {
-            
-            // When the map is disabled all the actions should be as well
-            InputHandler.SetMapActive(false);
-
-            horizontalAction.performed -= CacheRotation;
-            verticalAction.performed -= CacheRotation;
-
-            var keys = actions.Keys;
-            foreach (var key in keys)
-            {
-                key.performed -= PerformAction;
-            }
-        }
-
         #endregion
 
         public IEnumerator StartTurn(GameTurnManager manager)
         {
-            EnableCharacterControls();
+            InputHandler.SetMapActive(true);
             Debug.Log("Start Player Turn!");
+
             CurrentState = PlayerState.Deciding;
 
             while (CurrentState != PlayerState.InAction)
                 yield return null;
 
-            DisableCharacterControls();
+            InputHandler.SetMapActive(false);
             Debug.Log("End Player Turn!");
+
             manager.EndTurn();
         }
-
-
     }
 
     public enum PlayerState
     {
-        WaitingForTurn,
+        Waiting,
         Deciding,
         InAction,
         Failed
