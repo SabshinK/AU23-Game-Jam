@@ -8,8 +8,9 @@ namespace King
     public class LevelTransitionManager : MonoBehaviour
     {
 
-        [SerializeField] private Material trasitionMat;
+        public Material trasitionMat;
         public static LevelTransitionManager Instance;
+        [SerializeField] float transitionSpeed = 1f;
         //SINGLETOOOON
         private void Awake()
         {
@@ -26,7 +27,7 @@ namespace King
         bool transitioning = false;
         public void LoadLevel(string levelName)
         {
-            StartCoroutine(TransitionOutOfLevel(SceneManager.GetSceneByName(levelName).buildIndex);
+            StartCoroutine(TransitionOutOfLevel(SceneManager.GetSceneByName(levelName).buildIndex));
         }
         public void LoadLevel(int levelIndex)
         {
@@ -44,14 +45,14 @@ namespace King
             async.allowSceneActivation = false;
 
             //Start the transition animation
-            LeanTween.value(trasitionMat.GetFloat("_Opacity"), 0, 0.5f).setOnUpdate((float f) =>
+            LeanTween.value(trasitionMat.GetFloat("_Opacity"), 0, transitionSpeed).setOnUpdate((float f) =>
             {
                 trasitionMat.SetFloat("_Opacity", f);
             }).setOnComplete(
                 delegate ()
                 {
                     transitioning = false;
-                });
+                }).setEaseOutQuad();
 
             //Wait until both the animation and loading are done
             while(!async.isDone && !transitioning)
@@ -69,10 +70,10 @@ namespace King
         {
             trasitionMat.SetInt("_Inverse", 1);
             trasitionMat.SetFloat("_Opacity", 5);
-            LeanTween.value(trasitionMat.GetFloat("_Opacity"), 0, 0.5f).setOnUpdate((float f) =>
+            LeanTween.value(trasitionMat.GetFloat("_Opacity"), 0, transitionSpeed).setOnUpdate((float f) =>
             {
                 trasitionMat.SetFloat("_Opacity", f);
-            });
+            }).setEaseOutQuad();
         }
     }
 
