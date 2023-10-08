@@ -26,17 +26,21 @@ namespace King
         bool transitioning = false;
         public void LoadLevel(string levelName)
         {
-            StartCoroutine(TransitionOutOfLevel(levelName));
+            StartCoroutine(TransitionOutOfLevel(SceneManager.GetSceneByName(levelName).buildIndex);
+        }
+        public void LoadLevel(int levelIndex)
+        {
+            StartCoroutine(TransitionOutOfLevel(levelIndex));
         }
 
-        private IEnumerator TransitionOutOfLevel(string levelName)
+        private IEnumerator TransitionOutOfLevel(int levelIndex)
         {
             //Force initial state to be a transparent screen
             trasitionMat.SetFloat("_Opacity", 5);
             trasitionMat.SetInt("_Inverse", 0);
             transitioning = true;
             //Load level in the background
-            var async = SceneManager.LoadSceneAsync(levelName, LoadSceneMode.Single);
+            var async = SceneManager.LoadSceneAsync(levelIndex, LoadSceneMode.Single);
             async.allowSceneActivation = false;
 
             //Start the transition animation
