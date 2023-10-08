@@ -7,7 +7,7 @@ namespace King
 {
     public class GameTurnManager : MonoBehaviour
     {
-        [SerializeField] private int turnCount = 30;
+        public int turnCount = 30;
 
         //Replace GameObject with an interface which contains method "void StartTurn(GameTurnManager manager)"
         [SerializeField] List<GameObject> sentientObjects;
