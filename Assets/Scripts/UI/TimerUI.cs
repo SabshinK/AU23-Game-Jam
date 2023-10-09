@@ -8,18 +8,20 @@ namespace King
 {
     public class TimerUI : MonoBehaviour
     {
+        [SerializeField] private TMP_Text timeLeft;
+        [SerializeField] private TMP_Text movesUsed;
+
         private GameTurnManager manager;
-        private TMP_Text text;
 
         private void Awake()
         {
             manager = FindObjectOfType<GameTurnManager>();
-            text = GetComponent<TMP_Text>();
         }
 
         private void Update()
         {
-            text.text = $"{new TimeSpan(0, 0, manager.turnCount).ToString()}\n{50 - manager.turnCount}";
+            timeLeft.text = $"time_left: {new TimeSpan(0, 0, manager.turnCount).ToString()}";
+            movesUsed.text = $"moves_used: {50 - manager.turnCount}";
         }
     }
 }
