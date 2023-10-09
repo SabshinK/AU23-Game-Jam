@@ -19,7 +19,7 @@ namespace King
 
         private void Update()
         {
-            text.text = new TimeSpan(0, 0, manager.turnCount).ToString();
+            text.text = $"{new TimeSpan(0, 0, manager.turnCount).ToString()}\n{50 - manager.turnCount}";
         }
     }
 }

@@ -14,7 +14,6 @@ namespace King
 
         private InputAction horizontalAction;
         private InputAction verticalAction;
-        private InputAction undoAction;
         private Dictionary<InputAction, Action> actions;
         public PlayerState CurrentState { get; private set; }
 
@@ -24,11 +23,20 @@ namespace King
         private Vector3 nextSpace;
 
         private Animator anim;
+        /* 
+         * I wanted this to be a bool but for some reason you can't set bool property values
+         * inside animation events, even though ints and even enums can be set?? Idk man
+         */
+        public int Animating { get; set; }
+
+        private GameTurnManager manager;
 
         private Stack<Vector3> actionsTaken;
 
-        private bool moving;
         private bool canMove;
+
+        public delegate void OnActionFinished();
+        public event OnActionFinished onActionFinished;
 
         #region Unity Callbacks
 
@@ -39,19 +47,19 @@ namespace King
 
             horizontalAction = InputHandler.GetAction("Horizontal");
             verticalAction = InputHandler.GetAction("Vertical");
-            undoAction = InputHandler.GetAction("Undo");
             actions.Add(InputHandler.GetAction("Movement"), Move);
             actions.Add(InputHandler.GetAction("Interact"), Interact);
             actions.Add(InputHandler.GetAction("Attack"), Attack);
+            actions.Add(InputHandler.GetAction("Undo"), Undo);
 
             anim = GetComponentInChildren<Animator>();
+            manager = FindObjectOfType<GameTurnManager>();
         }
 
         private void OnEnable()
         {
             horizontalAction.performed += CacheRotation;
             verticalAction.performed += CacheRotation;
-            undoAction.performed += Undo;
 
             var keys = actions.Keys;
             foreach (var key in keys)
@@ -64,7 +72,6 @@ namespace King
         {
             horizontalAction.performed -= CacheRotation;
             verticalAction.performed -= CacheRotation;
-            undoAction.performed -= Undo;
 
             var keys = actions.Keys;
             foreach (var key in keys)
@@ -110,17 +117,7 @@ namespace King
                 rotation = Quaternion.LookRotation(rawRotation, Vector3.up);
             }
 
-            Debug.Log("bruh");
-
-            canMove = !Physics.Raycast(nextSpace, rawRotation * 2, out RaycastHit hitInfo, 2f);
-
-            Color color;
-            if (canMove)
-                color = Color.green;
-            else
-                color = Color.red;
-
-            Debug.DrawRay(nextSpace, rawRotation * 2, color, 1f);
+            CheckCanMove();
         }
 
         private void PerformAction(InputAction.CallbackContext context)
@@ -128,19 +125,9 @@ namespace King
             InputAction actionType = context.action;
 
             // We are only allowed to commit to actions while the rotation keys are being pressed
-            if (RotationIsPressed() && CurrentState != PlayerState.InAction && actions.ContainsKey(actionType))
+            if (CurrentState != PlayerState.InAction && actions.ContainsKey(actionType))
             {
                 actions[actionType].Invoke();
-            }
-        }
-
-        private void Undo(InputAction.CallbackContext context)
-        {
-            if (CurrentState != PlayerState.Waiting && actionsTaken.Count > 0)
-            {
-                nextSpace = actionsTaken.Pop();
-
-                StartCoroutine(SetSpace());
             }
         }
 
@@ -150,17 +137,37 @@ namespace King
 
         private void Move()
         {
-            if (canMove)
+            if (RotationIsPressed() && canMove)
             {
+                // Modifying turn counter must go before the player is "In Action"
+                manager.turnCount--;
+
                 CurrentState = PlayerState.InAction;
 
+                // Assign next space
                 Vector3 previousSpace = nextSpace;
                 nextSpace = previousSpace + rawRotation * 2;
 
-                // cache move
-                actionsTaken.Push(previousSpace);
+                // Cache move
+                actionsTaken.Push(previousSpace);                
 
-                StartCoroutine(Movement());
+                // Start the animations and such
+                StartCoroutine(SetSpace());
+            }
+        }
+
+        private void Undo()
+        {
+            if (actionsTaken.Count > 0)
+            {
+                // Same stuff as move but turning back the clock
+                manager.turnCount++;
+
+                CurrentState = PlayerState.InAction;
+               
+                nextSpace = actionsTaken.Pop();                
+
+                StartCoroutine(SetSpace());
             }
         }
 
@@ -176,16 +183,7 @@ namespace King
 
         private IEnumerator SetSpace(float timeInSeconds = 1.0f)
         {
-            moving = true;
-
             anim.SetTrigger("Move");
-
-            //for (float t = 0; t < 1f; t += Time.deltaTime / timeInSeconds)
-            //{
-            //    transform.position = Vector3.Lerp(transform.position, nextSpace, t);
-
-            //    yield return null;
-            //}
 
             while (transform.position != nextSpace)
             {
@@ -194,25 +192,19 @@ namespace King
                 yield return null;
             }
 
-            moving = false;
-        }
-
-        private IEnumerator Movement()
-        {
-            StartCoroutine(SetSpace());
-
-            yield return new WaitUntil(() => { return !moving; });
+            // Wait until the movement animation is finished
+            yield return new WaitUntil(() => { return Animating == 0; });
 
             CurrentState = PlayerState.Deciding;
+
+            onActionFinished?.Invoke();
         }
 
         public bool RotationIsPressed()
         {
             return horizontalAction.IsPressed() || verticalAction.IsPressed();
         }
-
-        #endregion
-
+        
         public IEnumerator StartTurn(GameTurnManager manager)
         {
             InputHandler.SetMapActive(true);
@@ -228,6 +220,21 @@ namespace King
 
             manager.EndTurn();
         }
+
+        public void CheckCanMove()
+        {
+            canMove = !Physics.Raycast(nextSpace, rawRotation * 2, out RaycastHit hitInfo, 2f);
+
+            Color color;
+            if (canMove)
+                color = Color.green;
+            else
+                color = Color.red;
+
+            Debug.DrawRay(nextSpace, rawRotation * 2, color, 1f);
+        }
+
+        #endregion
     }
 
     public enum PlayerState

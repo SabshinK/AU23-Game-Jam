@@ -49,7 +49,7 @@ namespace King
         public void EndTurn()
         {
             objectTurn = (objectTurn + 1) % sentientObjects.Count;
-            if (objectTurn == 0) turnCount--;
+            //if (objectTurn == 0) turnCount--;
             StartCoroutine(sentientObjects[objectTurn].GetComponent<ISentient>().StartTurn(this));
         }
 
