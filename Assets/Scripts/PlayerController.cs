@@ -12,10 +12,13 @@ namespace King
         [SerializeField] private float rotationSpeed = 5f;
         [SerializeField] private float movementSpeed = 5f;
 
+        [SerializeField] private LayerMask hurtboxMask;
+
         private InputAction horizontalAction;
         private InputAction verticalAction;
         private Dictionary<InputAction, Action> actions;
         public PlayerState CurrentState { get; private set; }
+        private bool damaged;
 
         private Vector3 rawRotation;
         private Quaternion rotation;
@@ -35,7 +38,7 @@ namespace King
 
         private bool canMove;
 
-        public delegate void OnActionFinished();
+        public delegate void OnActionFinished(bool fromMove);
         public event OnActionFinished onActionFinished;
 
         #region Unity Callbacks
@@ -66,6 +69,8 @@ namespace King
             {
                 key.performed += PerformAction;
             }
+
+            onActionFinished += CheckHurtbox;
         }
 
         private void OnDisable()
@@ -78,6 +83,8 @@ namespace King
             {
                 key.performed -= PerformAction;
             }
+
+            onActionFinished -= CheckHurtbox;
         }
 
         private void Start()
@@ -140,7 +147,11 @@ namespace King
             if (RotationIsPressed() && canMove)
             {
                 // Modifying turn counter must go before the player is "In Action"
-                manager.turnCount--;
+                // If we were damaged, the turn counter has already been decreased, no need to do it again
+                if (!damaged)
+                    manager.turnCount--;
+                else
+                    damaged = false;
 
                 CurrentState = PlayerState.InAction;
 
@@ -151,8 +162,14 @@ namespace King
                 // Cache move
                 actionsTaken.Push(previousSpace);                
 
-                // Start the animations and such
-                StartCoroutine(SetSpace());
+                /* 
+                 * Start the animations and such. I am passing a bool that lets downstream methods
+                 * know what action we just came from. It's not my preferred method but it works.
+                 * The more ideal version of this method would be IActions that get passed to the
+                 * event and operate in conjunction with the PlayerState enum. It would offload code
+                 * into separate classes.
+                 */
+                StartCoroutine(SetSpace(true));
             }
         }
 
@@ -161,13 +178,16 @@ namespace King
             if (actionsTaken.Count > 0)
             {
                 // Same stuff as move but turning back the clock
-                manager.turnCount++;
+                if (!damaged)
+                    manager.turnCount++;
+                else
+                    damaged = false;
 
                 CurrentState = PlayerState.InAction;
                
                 nextSpace = actionsTaken.Pop();                
 
-                StartCoroutine(SetSpace());
+                StartCoroutine(SetSpace(false));
             }
         }
 
@@ -180,8 +200,32 @@ namespace King
         {
             // TODO
         }
+        
+        public IEnumerator StartTurn(GameTurnManager manager)
+        {
+            /*
+             * Make sure the player finished their previous turn before they start their next one, give 
+             * time for the animations to finish, etc. On Start the player is deciding so this should 
+             * be fine
+             */
+            yield return new WaitUntil(() => { return CurrentState != PlayerState.InAction; });
 
-        private IEnumerator SetSpace(float timeInSeconds = 1.0f)
+            InputHandler.SetMapActive(true);
+            //Debug.Log("Start Player Turn!");
+
+            CurrentState = PlayerState.Deciding;
+
+            // Wait until player takes an action
+            yield return new WaitUntil(() => { return CurrentState == PlayerState.InAction; });
+
+            InputHandler.SetMapActive(false);
+            //Debug.Log("End Player Turn!");
+
+            // End the player turn while they are doing animations so the world can update
+            manager.EndTurn();
+        }
+
+        private IEnumerator SetSpace(bool fromMove)
         {
             anim.SetTrigger("Move");
 
@@ -197,36 +241,12 @@ namespace King
 
             CurrentState = PlayerState.Deciding;
 
-            onActionFinished?.Invoke();
+            onActionFinished?.Invoke(fromMove);
         }
 
         public bool RotationIsPressed()
         {
             return horizontalAction.IsPressed() || verticalAction.IsPressed();
-        }
-        
-        public IEnumerator StartTurn(GameTurnManager manager)
-        {
-            /*
-             * Make sure the player finished their previous turn before they start their next one, give 
-             * time for the animations to finish, etc. On Start the player is deciding so this should 
-             * be fine
-             */
-            yield return new WaitUntil(() => { return CurrentState != PlayerState.InAction; });
-
-            InputHandler.SetMapActive(true);
-            Debug.Log("Start Player Turn!");
-
-            CurrentState = PlayerState.Deciding;
-
-            // Wait until player takes an action
-            yield return new WaitUntil(() => { return CurrentState == PlayerState.InAction; });
-
-            InputHandler.SetMapActive(false);
-            Debug.Log("End Player Turn!");
-
-            // End the player turn while they are doing animations so the world can update
-            manager.EndTurn();
         }
 
         public void CheckCanMove()
@@ -240,6 +260,23 @@ namespace King
                 color = Color.red;
 
             Debug.DrawRay(nextSpace, rawRotation * 2, color, 1f);
+        }
+
+        private void CheckHurtbox(bool fromMove)
+        {
+            foreach (Collider col in Physics.OverlapBox(nextSpace - new Vector3(0, 1, 0), new Vector3(0.5f, 0.5f, 0.5f), transform.rotation, hurtboxMask))
+            {
+                if (col.TryGetComponent(out Hurtbox hurtbox))
+                {
+                    if (fromMove)
+                        manager.turnCount -= hurtbox.TimeDamage;
+                    else
+                        manager.turnCount += hurtbox.TimeDamage;
+
+                    // Set flag for move
+                    damaged = true;
+                }
+            }
         }
 
         #endregion
