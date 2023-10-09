@@ -87,7 +87,7 @@ namespace King
 
             nextSpace = transform.position;
 
-            CurrentState = PlayerState.Waiting;
+            CurrentState = PlayerState.Deciding;
         }
 
         private void Update()
@@ -207,17 +207,25 @@ namespace King
         
         public IEnumerator StartTurn(GameTurnManager manager)
         {
+            /*
+             * Make sure the player finished their previous turn before they start their next one, give 
+             * time for the animations to finish, etc. On Start the player is deciding so this should 
+             * be fine
+             */
+            yield return new WaitUntil(() => { return CurrentState != PlayerState.InAction; });
+
             InputHandler.SetMapActive(true);
             Debug.Log("Start Player Turn!");
 
             CurrentState = PlayerState.Deciding;
 
-            while (CurrentState != PlayerState.InAction)
-                yield return null;
+            // Wait until player takes an action
+            yield return new WaitUntil(() => { return CurrentState == PlayerState.InAction; });
 
             InputHandler.SetMapActive(false);
             Debug.Log("End Player Turn!");
 
+            // End the player turn while they are doing animations so the world can update
             manager.EndTurn();
         }
 
@@ -239,7 +247,6 @@ namespace King
 
     public enum PlayerState
     {
-        Waiting,
         Deciding,
         InAction,
         Failed

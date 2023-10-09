@@ -6,11 +6,17 @@ namespace King
 {
     public class Button : MonoBehaviour
     {
-        [SerializeField] private GameObject receiver;
+        [SerializeField] private GameObject receiverObj;
+        private IReceiver receiver;
 
         [SerializeField] private Material activatedMaterial;
 
         private PlayerController player;
+
+        private void Awake()
+        {
+            receiver = receiverObj.GetComponent<IReceiver>();
+        }
 
         private void OnTriggerEnter(Collider other)
         {
@@ -24,8 +30,8 @@ namespace King
 
         private void Activate()
         {
-            // The receiver should do stuff (for doors they just disappear)
-            receiver.SetActive(false);
+            // The receiver should do stuff
+            receiver.Receive();
 
             // Disable trigger callbacks
             GetComponent<BoxCollider>().enabled = false;
