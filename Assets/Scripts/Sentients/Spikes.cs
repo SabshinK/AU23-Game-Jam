@@ -6,14 +6,23 @@ namespace King
 {
     public class Spikes : MonoBehaviour, ISentient
     {
-        [SerializeField] GameObject spikeParent;
+        [SerializeField] private GameObject spikeParent;
 
         //Window of time for the spikes to be enabled.
-        [SerializeField] int period = 2;
+        [SerializeField] private int period = 2;
         //The specific turn number inside the period which the spikes are enabled.
-        [SerializeField] int offset = 0;
+        [SerializeField] private int offset = 0;
 
-        bool spikesOut;
+        [SerializeField] private AudioClip outClip;
+        [SerializeField] private AudioClip retractedClip;
+        private AudioSource audioSource;
+
+        private bool spikesOut;
+
+        private void Awake()
+        {
+            audioSource = GetComponent<AudioSource>();
+        }
 
         private void Start()
         {
@@ -27,11 +36,15 @@ namespace King
             {
                 spikesOut = true;
                 spikeParent.SetActive(spikesOut);
+
+                audioSource.PlayOneShot(outClip, 1.0f);
             }
             else if (spikesOut)
             {
                 spikesOut = false;
                 spikeParent.SetActive(spikesOut);
+
+                audioSource.PlayOneShot(retractedClip, 1.0f);
             }
 
             yield return null;

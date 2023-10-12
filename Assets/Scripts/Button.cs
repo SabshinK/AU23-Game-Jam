@@ -13,9 +13,19 @@ namespace King
 
         private PlayerController player;
 
+        private BoxCollider col;
+        private Renderer rend;
+        private ParticleSystem ps;
+        private AudioSource audioSource;
+
         private void Awake()
         {
             receiver = receiverObj.GetComponent<IReceiver>();
+
+            col = GetComponent<BoxCollider>();
+            rend = GetComponent<Renderer>();
+            ps = GetComponentInChildren<ParticleSystem>();
+            audioSource = GetComponent<AudioSource>();
         }
 
         private void OnTriggerEnter(Collider other)
@@ -34,11 +44,14 @@ namespace King
             receiver.Receive();
 
             // Disable trigger callbacks
-            GetComponent<BoxCollider>().enabled = false;
+            col.enabled = false;
 
             // Visuals
-            GetComponent<Renderer>().material = activatedMaterial;
-            GetComponentInChildren<ParticleSystem>().Play();
+            rend.material = activatedMaterial;
+            ps.Play();
+
+            // Audio
+            audioSource.Play();
 
             /* 
              * This is only really used in one case but after a button is pressed, 
