@@ -14,6 +14,9 @@ namespace King
 
         [SerializeField] private LayerMask hurtboxMask;
 
+        [SerializeField] private AudioClip moveClip;
+        [SerializeField] private AudioClip undoClip;
+
         private InputAction horizontalAction;
         private InputAction verticalAction;
         private Dictionary<InputAction, Action> actions;
@@ -25,6 +28,7 @@ namespace King
 
         private Vector3 nextSpace;
 
+        private AudioSource audioSource;
         private Animator anim;
         /* 
          * I wanted this to be a bool but for some reason you can't set bool property values
@@ -55,6 +59,7 @@ namespace King
             actions.Add(InputHandler.GetAction("Attack"), Attack);
             actions.Add(InputHandler.GetAction("Undo"), Undo);
 
+            audioSource = GetComponent<AudioSource>();
             anim = GetComponentInChildren<Animator>();
             manager = FindObjectOfType<GameTurnManager>();
         }
@@ -71,6 +76,7 @@ namespace King
             }
 
             onActionFinished += CheckHurtbox;
+            onActionFinished += MovementAudio;
         }
 
         private void OnDisable()
@@ -85,6 +91,7 @@ namespace King
             }
 
             onActionFinished -= CheckHurtbox;
+            onActionFinished -= MovementAudio;
         }
 
         private void Start()
@@ -160,7 +167,7 @@ namespace King
                 nextSpace = previousSpace + rawRotation * 2;
 
                 // Cache move
-                actionsTaken.Push(previousSpace);                
+                actionsTaken.Push(previousSpace);
 
                 /* 
                  * Start the animations and such. I am passing a bool that lets downstream methods
@@ -277,6 +284,14 @@ namespace King
                     damaged = true;
                 }
             }
+        }
+
+        private void MovementAudio(bool fromMove)
+        {
+            if (fromMove)
+                audioSource.PlayOneShot(moveClip, 1.0f);
+            else
+                audioSource.PlayOneShot(undoClip, 1.0f);
         }
 
         #endregion
