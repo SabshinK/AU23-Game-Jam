@@ -6,18 +6,20 @@ namespace King
 {
     public class Damaged : IAction
     {
-        private PlayerController player;
         private GameTurnManager manager;
+        private int damageTaken;
 
-        public Damaged(PlayerController player, GameTurnManager manager)
+        public Damaged(GameTurnManager manager, int damageTaken)
         {
-            this.player = player;
             this.manager = manager;
+            this.damageTaken = damageTaken;
+
+            manager.TurnCount -= damageTaken;
         }
 
         public void Undo()
         {
-            throw new System.NotImplementedException();
+            manager.TurnCount += damageTaken;
         }
     }
 }

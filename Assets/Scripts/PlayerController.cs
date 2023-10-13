@@ -21,7 +21,6 @@ namespace King
         private InputAction verticalAction;
         private Dictionary<InputAction, Action> actions;
         public PlayerState CurrentState { get; private set; }
-        private bool damaged;
 
         private Vector3 rawRotation;
         public Vector3 RawRotation => rawRotation;
@@ -44,7 +43,7 @@ namespace King
         private bool canMove;
         public bool CanMove => canMove;
 
-        public delegate void OnActionFinished(bool fromMove);
+        public delegate void OnActionFinished();
         public event OnActionFinished onActionFinished;
 
         #region Unity Callbacks
@@ -78,7 +77,7 @@ namespace King
             }
 
             onActionFinished += CheckHurtbox;
-            onActionFinished += MovementAudio;
+            onActionFinished += ActionFinishedAudio;
         }
 
         private void OnDisable()
@@ -93,7 +92,7 @@ namespace King
             }
 
             onActionFinished -= CheckHurtbox;
-            onActionFinished -= MovementAudio;
+            onActionFinished -= ActionFinishedAudio;
         }
 
         private void Start()
@@ -156,11 +155,7 @@ namespace King
             if (RotationIsPressed() && canMove && manager.TurnCount > 0)
             {
                 // Modifying turn counter must go before the player is "In Action"
-                // If we were damaged, the turn counter has already been decreased, no need to do it again
-                if (!damaged)
-                    manager.TurnCount--;
-                else
-                    damaged = false;
+                manager.TurnCount--;
 
                 CurrentState = PlayerState.InAction;
 
@@ -170,7 +165,10 @@ namespace King
 
                 // Assign next space
                 Vector3 previousSpace = NextSpace;
-                NextSpace = previousSpace + rawRotation * 2;                
+                NextSpace = previousSpace + rawRotation * 2;
+
+                // Set audio clip
+                audioSource.clip = moveClip;
 
                 /* 
                  * Start the animations and such. I am passing a bool that lets downstream methods
@@ -179,7 +177,7 @@ namespace King
                  * event and operate in conjunction with the PlayerState enum. It would offload code
                  * into separate classes.
                  */
-                StartCoroutine(SetSpace(true));
+                StartCoroutine(SetSpace());
             }
         }
 
@@ -187,18 +185,32 @@ namespace King
         {
             if (actionsTaken.Count > 0)
             {
-                // Same stuff as move but turning back the clock
-                if (!damaged)
-                    manager.TurnCount++;
-                else
-                    damaged = false;
+                manager.TurnCount++;
 
                 CurrentState = PlayerState.InAction;
-               
+
+                // Check if the action is a Damaged instance, we want to clear this out first
+                if (actionsTaken.Peek() is Damaged)
+                {
+                    IAction damagedAction = actionsTaken.Pop();
+                    damagedAction.Undo();
+                }
+
+                /*
+                 * There is one condition here that isn't being checked, that being whether the stack is
+                 * empty after clearing the damaged actions. This case is basically impossible though 
+                 * because it would require the player taking a bunch of damage at the beginning of the
+                 * level without having made any moves, which won't feasibly happen.
+                 */
+
+                // Undo the last action
                 IAction lastAction = actionsTaken.Pop();
                 lastAction.Undo();
 
-                StartCoroutine(SetSpace(false));
+                // Set the audio clip
+                audioSource.clip = undoClip;
+
+                StartCoroutine(SetSpace());
             }
         }
 
@@ -241,7 +253,7 @@ namespace King
             manager.EndTurn();
         }
 
-        private IEnumerator SetSpace(bool fromMove)
+        private IEnumerator SetSpace()
         {
             anim.SetTrigger("Move");
 
@@ -257,7 +269,7 @@ namespace King
 
             CurrentState = PlayerState.Deciding;
 
-            onActionFinished?.Invoke(fromMove);
+            onActionFinished?.Invoke();
         }
 
         public bool RotationIsPressed()
@@ -278,33 +290,22 @@ namespace King
             Debug.DrawRay(NextSpace, rawRotation * 2, color, 1f);
         }
 
-        private void CheckHurtbox(bool fromMove)
+        private void CheckHurtbox()
         {
             foreach (Collider col in Physics.OverlapBox(NextSpace - new Vector3(0, 1, 0), new Vector3(0.5f, 0.5f, 0.5f), transform.rotation, hurtboxMask))
             {
                 if (col.TryGetComponent(out Hurtbox hurtbox))
                 {
-                    if (fromMove)
-                        manager.TurnCount -= hurtbox.TimeDamage;
-                    else
-                        manager.TurnCount += hurtbox.TimeDamage;
-
                     // Cache damage
-                    IAction damaged = new Damaged(this, manager);
+                    IAction damaged = new Damaged(manager, hurtbox.TimeDamage);
                     actionsTaken.Push(damaged);
-
-                    // Set flag for move
-                    this.damaged = true;
                 }
             }
         }
 
-        private void MovementAudio(bool fromMove)
+        private void ActionFinishedAudio()
         {
-            if (fromMove)
-                audioSource.PlayOneShot(moveClip, 1.0f);
-            else
-                audioSource.PlayOneShot(undoClip, 1.0f);
+            audioSource.Play();
         }
 
         #endregion

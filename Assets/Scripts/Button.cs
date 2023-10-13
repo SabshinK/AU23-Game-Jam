@@ -38,7 +38,7 @@ namespace King
             }
         }
 
-        private void Activate(bool fromMove)
+        private void Activate()
         {
             // The receiver should do stuff
             receiver.Receive();
