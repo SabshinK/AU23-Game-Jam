@@ -12,16 +12,34 @@ namespace King
         [SerializeField] private TMP_Text movesUsed;
 
         private GameTurnManager manager;
+        private Animator anim;
 
         private void Awake()
         {
             manager = FindObjectOfType<GameTurnManager>();
+            anim = GetComponent<Animator>();
         }
 
-        private void Update()
+        private void Start()
         {
-            timeLeft.text = $"time_left: {new TimeSpan(0, 0, manager.turnCount).ToString()}";
-            movesUsed.text = $"moves_used: {50 - manager.turnCount}";
+            UpdateUI(manager.TurnCount);
+        }
+
+        private void OnEnable()
+        {
+            manager.onUpdateTurn += UpdateUI;
+        }
+
+        private void OnDisable()
+        {
+            manager.onUpdateTurn -= UpdateUI;
+        }
+
+        private void UpdateUI(int turn)
+        {
+            timeLeft.text = $"time_left: {new TimeSpan(0, 0, turn)}";
+            anim.SetInteger("TimeLeft", turn);
+            movesUsed.text = $"moves_used: {50 - turn}";
         }
     }
 }

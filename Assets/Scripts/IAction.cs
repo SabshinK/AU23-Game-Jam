@@ -6,6 +6,6 @@ namespace King
 {
     public interface IAction
     {
-        IEnumerator Perform();
+        void Undo();
     }
 }

@@ -7,6 +7,6 @@ namespace King
     public interface ISentient
     {
         /*Nothing turn-related should happen outside of the start turn method*/
-        public IEnumerator StartTurn(GameTurnManager manager);
+        public void StartTurn(GameTurnManager manager);
     }
 }

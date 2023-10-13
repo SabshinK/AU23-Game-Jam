@@ -24,9 +24,10 @@ namespace King
         private bool damaged;
 
         private Vector3 rawRotation;
+        public Vector3 RawRotation => rawRotation;
         private Quaternion rotation;
 
-        private Vector3 nextSpace;
+        public Vector3 NextSpace { get; set; }
 
         private AudioSource audioSource;
         private Animator anim;
@@ -38,9 +39,10 @@ namespace King
 
         private GameTurnManager manager;
 
-        private Stack<Vector3> actionsTaken;
+        private Stack<IAction> actionsTaken;
 
         private bool canMove;
+        public bool CanMove => canMove;
 
         public delegate void OnActionFinished(bool fromMove);
         public event OnActionFinished onActionFinished;
@@ -50,7 +52,7 @@ namespace King
         private void Awake()
         {
             actions = new Dictionary<InputAction, Action>();
-            actionsTaken = new Stack<Vector3>();
+            actionsTaken = new Stack<IAction>();
 
             horizontalAction = InputHandler.GetAction("Horizontal");
             verticalAction = InputHandler.GetAction("Vertical");
@@ -99,7 +101,7 @@ namespace King
             rawRotation = Vector3.zero;
             rotation = transform.rotation;
 
-            nextSpace = transform.position;
+            NextSpace = transform.position;
 
             CurrentState = PlayerState.Deciding;
         }
@@ -151,23 +153,24 @@ namespace King
 
         private void Move()
         {
-            if (RotationIsPressed() && canMove && manager.GlobalTurnCount > 0)
+            if (RotationIsPressed() && canMove && manager.TurnCount > 0)
             {
                 // Modifying turn counter must go before the player is "In Action"
                 // If we were damaged, the turn counter has already been decreased, no need to do it again
                 if (!damaged)
-                    manager.turnCount--;
+                    manager.TurnCount--;
                 else
                     damaged = false;
 
                 CurrentState = PlayerState.InAction;
 
-                // Assign next space
-                Vector3 previousSpace = nextSpace;
-                nextSpace = previousSpace + rawRotation * 2;
-
                 // Cache move
-                actionsTaken.Push(previousSpace);
+                IAction move = new Move(this);
+                actionsTaken.Push(move);
+
+                // Assign next space
+                Vector3 previousSpace = NextSpace;
+                NextSpace = previousSpace + rawRotation * 2;                
 
                 /* 
                  * Start the animations and such. I am passing a bool that lets downstream methods
@@ -186,13 +189,14 @@ namespace King
             {
                 // Same stuff as move but turning back the clock
                 if (!damaged)
-                    manager.turnCount++;
+                    manager.TurnCount++;
                 else
                     damaged = false;
 
                 CurrentState = PlayerState.InAction;
                
-                nextSpace = actionsTaken.Pop();                
+                IAction lastAction = actionsTaken.Pop();
+                lastAction.Undo();
 
                 StartCoroutine(SetSpace(false));
             }
@@ -207,8 +211,13 @@ namespace King
         {
             // TODO
         }
+
+        public void StartTurn(GameTurnManager manager)
+        {
+            StartCoroutine(PlayerTurn(manager));
+        }
         
-        public IEnumerator StartTurn(GameTurnManager manager)
+        public IEnumerator PlayerTurn(GameTurnManager manager)
         {
             /*
              * Make sure the player finished their previous turn before they start their next one, give 
@@ -236,9 +245,9 @@ namespace King
         {
             anim.SetTrigger("Move");
 
-            while (transform.position != nextSpace)
+            while (transform.position != NextSpace)
             {
-                transform.position = Vector3.MoveTowards(transform.position, nextSpace, movementSpeed * Time.deltaTime);
+                transform.position = Vector3.MoveTowards(transform.position, NextSpace, movementSpeed * Time.deltaTime);
 
                 yield return null;
             }
@@ -258,7 +267,7 @@ namespace King
 
         public void CheckCanMove()
         {
-            canMove = !Physics.Raycast(nextSpace, rawRotation * 2, out RaycastHit hitInfo, 2f);
+            canMove = !Physics.Raycast(NextSpace, rawRotation * 2, out RaycastHit hitInfo, 2f) && manager.TurnCount > 0;
 
             Color color;
             if (canMove)
@@ -266,22 +275,26 @@ namespace King
             else
                 color = Color.red;
 
-            Debug.DrawRay(nextSpace, rawRotation * 2, color, 1f);
+            Debug.DrawRay(NextSpace, rawRotation * 2, color, 1f);
         }
 
         private void CheckHurtbox(bool fromMove)
         {
-            foreach (Collider col in Physics.OverlapBox(nextSpace - new Vector3(0, 1, 0), new Vector3(0.5f, 0.5f, 0.5f), transform.rotation, hurtboxMask))
+            foreach (Collider col in Physics.OverlapBox(NextSpace - new Vector3(0, 1, 0), new Vector3(0.5f, 0.5f, 0.5f), transform.rotation, hurtboxMask))
             {
                 if (col.TryGetComponent(out Hurtbox hurtbox))
                 {
                     if (fromMove)
-                        manager.turnCount -= hurtbox.TimeDamage;
+                        manager.TurnCount -= hurtbox.TimeDamage;
                     else
-                        manager.turnCount += hurtbox.TimeDamage;
+                        manager.TurnCount += hurtbox.TimeDamage;
+
+                    // Cache damage
+                    IAction damaged = new Damaged(this, manager);
+                    actionsTaken.Push(damaged);
 
                     // Set flag for move
-                    damaged = true;
+                    this.damaged = true;
                 }
             }
         }

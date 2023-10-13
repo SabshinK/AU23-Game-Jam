@@ -30,9 +30,9 @@ namespace King
             spikeParent.SetActive(spikesOut);
         }
 
-        public IEnumerator StartTurn(GameTurnManager manager)
+        public void StartTurn(GameTurnManager manager)
         {
-            if (manager.turnCount % period == offset)
+            if (manager.TurnCount % period == offset)
             {
                 spikesOut = true;
                 spikeParent.SetActive(spikesOut);
@@ -46,8 +46,6 @@ namespace King
 
                 audioSource.PlayOneShot(retractedClip, 1.0f);
             }
-
-            yield return null;
 
             manager.EndTurn();
         }

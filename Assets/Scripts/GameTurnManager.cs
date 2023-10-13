@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,62 +8,49 @@ namespace King
 {
     public class GameTurnManager : MonoBehaviour
     {
-        public int turnCount = 30;
+        public delegate void OnUpdateTurn(int turn);
+        public event OnUpdateTurn onUpdateTurn;
 
-        //Replace GameObject with an interface which contains method "void StartTurn(GameTurnManager manager)"
-        [SerializeField] List<GameObject> sentientObjects;
-        private List<ISentient> npcSentients;
-        private ISentient player;
-
-        public int GlobalTurnCount 
+        [SerializeField] private int turnCount = 30;
+        public int TurnCount
         {
-            get { return turnCount; } 
-            private set { turnCount = value; }
+            get { return turnCount; }
+            set
+            {
+                turnCount = value;
+                onUpdateTurn?.Invoke(turnCount);
+            }
         }
+
+        private ISentient[] sentients;
 
         int objectTurn = 0;
 
         private void Awake()
         {
-            //// Gather all of the sentients and put them in a list
-            //ISentient[] sentients = (ISentient[])FindObjectsOfType(typeof(ISentient));
-            //npcSentients = sentients.ToList();
+            // Gather all of the sentients and put them in a list
+            MonoBehaviour[] monoBehaviours = FindObjectsOfType<MonoBehaviour>();
 
-            //// Remove the player from the list
-            //for (int i = 0; i < npcSentients.Count; i++)
-            //{
-            //    if (npcSentients[i] is PlayerController)
-            //    {
-            //        player = npcSentients[i];
-            //        npcSentients.RemoveAt(i);
-            //        break;
-            //    }
-            //}
+            /* 
+             * How this query works: we declare sentients as the things we want and we will be searching the array of monoBehaviours.
+             * We use the method GetType() to extract the type from our objects, then GetInterfaces() provides arrays of all the interfaces
+             * being implemented for each object, and finally we use Any() to check if the object implements the interface we're looking
+             * for. After all these checks sentients should be filled with the MonoBehaviours that implement T
+             */
+            sentients = (from sentients in monoBehaviours where sentients.GetType().GetInterfaces().Any(k => k == typeof(ISentient)) select (ISentient)sentients).ToArray();
         }
 
         private void Start()
         {
             //Start the first object's turn
-            StartCoroutine(sentientObjects[objectTurn].GetComponent<ISentient>().StartTurn(this));
+            sentients[objectTurn].StartTurn(this);
         }
 
         public void EndTurn()
         {
-            objectTurn = (objectTurn + 1) % sentientObjects.Count;
+            objectTurn = (objectTurn + 1) % sentients.Length;
             //if (objectTurn == 0) turnCount--;
-            StartCoroutine(sentientObjects[objectTurn].GetComponent<ISentient>().StartTurn(this));
+            sentients[objectTurn].StartTurn(this);
         }
-
-        //private IEnumerator TurnOrder()
-        //{
-        //    int turnsleft = turnCount;
-
-        //    while (turnsleft > 0)
-        //    {
-        //        // Player's turn
-
-        //        // Traps do their thing
-        //    }
-        //}
     }
 }

@@ -8,14 +8,15 @@ namespace King
     {
         [SerializeField] GameObject doorCollider;
         [SerializeField] int minTurnCount = 0;
+
         private void Awake()
         {
             doorCollider.SetActive(minTurnCount==0);
         }
-        public IEnumerator StartTurn(GameTurnManager manager)
+
+        public void StartTurn(GameTurnManager manager)
         {
-            doorCollider.SetActive(minTurnCount >= manager.GlobalTurnCount);
-            yield return null;
+            doorCollider.SetActive(minTurnCount >= manager.TurnCount);
             manager.EndTurn();
         }
     }
