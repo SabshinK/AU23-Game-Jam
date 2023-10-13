@@ -151,7 +151,7 @@ namespace King
 
         private void Move()
         {
-            if (RotationIsPressed() && canMove)
+            if (RotationIsPressed() && canMove && manager.GlobalTurnCount > 0)
             {
                 // Modifying turn counter must go before the player is "In Action"
                 // If we were damaged, the turn counter has already been decreased, no need to do it again
